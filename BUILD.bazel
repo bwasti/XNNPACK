@@ -436,7 +436,9 @@ SCALAR_UKERNELS = [
 ]
 
 WASM_UKERNELS = [
-    "src/f32-relu/wasm.S",
+    "src/f32-relu/wasm_shr_x1.S",
+    "src/f32-relu/wasm_shr_x2.S",
+    "src/f32-relu/wasm_shr_x4.S",
     "src/f32-avgpool/9p8x-minmax-wasm-c1.c",
     "src/f32-avgpool/9x-minmax-wasm-c1.c",
     "src/f32-clamp/gen/wasm-x1.c",
