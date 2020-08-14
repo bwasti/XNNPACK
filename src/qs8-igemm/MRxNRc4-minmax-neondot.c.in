@@ -13,7 +13,6 @@ $assert 8 <= NR <= 16
 #include <xnnpack/common.h>
 #include <xnnpack/igemm.h>
 
-
 void xnn_qs8_igemm_minmax_ukernel_${MR}x${NR}c4__neondot(
     size_t mr,
     size_t nc,
@@ -73,6 +72,26 @@ void xnn_qs8_igemm_minmax_ukernel_${MR}x${NR}c4__neondot(
 
       // Inner accumulation loop along the ${NR} columns.
       size_t k = 0;
+      // 2x partial unrolled loop to load 8 bytes at a time.
+      while (k + 8 * sizeof(int8_t) <= kc) {
+        // Load a ${MR}x8 block of activations.
+        $for M in range(MR):
+          int8x8_t va${M}x01234567 = vld1_s8(a${M}); a${M} += 8;
+
+        // Load a 8x${NR} block of weights.
+        $for K in range(0, 8, 4):
+          $for N in range(0, NR, 4):
+            int8x16_t vb${ABC[K:K+4]}x${ABC[N:N+4]} = vld1q_s8(w); w = (const void*)((const int8_t*)w + 16);
+
+        // Multiply-accumulate: ${MR}x8 * 8x${NR} --> ${MR}x${NR}.
+        $for K in range(0, 8, 4):
+          $for M in range(MR):
+            $for N in range(0, NR, 4):
+              vacc${M}x${ABC[N:N+4]} = vdotq_lane_s32(vacc${M}x${ABC[N:N+4]}, vb${ABC[K:K+4]}x${ABC[N:N+4]}, va${M}x01234567, ${K/4});
+
+        k += 8 * sizeof(int8_t);
+      }
+      // Handle final 4 positions of `k`.
       while (k < kc) {
         // Load a ${MR}x4 block of activations.
         $for M in range(MR):
@@ -80,7 +99,7 @@ void xnn_qs8_igemm_minmax_ukernel_${MR}x${NR}c4__neondot(
 
         // Load a 4x${NR} block of weights.
         $for N in range(0, NR, 4):
-          int8x16_t vb0123x${ABC[N:N+4]} = vld1q_s8((const int8_t*)w); w = (const void*)((const int8_t*)w + 16);
+          int8x16_t vb0123x${ABC[N:N+4]} = vld1q_s8(w); w = (const void*)((const int8_t*)w + 16);
 
         // Multiply-accumulate: ${MR}x4 * 4x${NR} --> ${MR}x${NR}.
         $for M in range(MR):

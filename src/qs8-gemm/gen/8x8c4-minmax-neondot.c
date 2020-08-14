@@ -103,6 +103,61 @@ void xnn_qs8_gemm_minmax_ukernel_8x8c4__neondot(
 
     // Inner accumulation loop along the 8 columns.
     size_t k = 0;
+    // 2x partial unrolled loop to load 8 bytes at a time.
+    while (k + 8 * sizeof(int8_t) <= kc) {
+      // Load a 8x8 block of activations.
+      int8x8_t va0x01234567 = vld1_s8(a0); a0 += 8;
+      int8x8_t va1x01234567 = vld1_s8(a1); a1 += 8;
+      int8x8_t va2x01234567 = vld1_s8(a2); a2 += 8;
+      int8x8_t va3x01234567 = vld1_s8(a3); a3 += 8;
+      int8x8_t va4x01234567 = vld1_s8(a4); a4 += 8;
+      int8x8_t va5x01234567 = vld1_s8(a5); a5 += 8;
+      int8x8_t va6x01234567 = vld1_s8(a6); a6 += 8;
+      int8x8_t va7x01234567 = vld1_s8(a7); a7 += 8;
+
+      // Load a 8x8 block of weights.
+      int8x16_t vb0123x0123 = vld1q_s8(w); w = (const void*)((const int8_t*)w + 16);
+      int8x16_t vb0123x4567 = vld1q_s8(w); w = (const void*)((const int8_t*)w + 16);
+      int8x16_t vb4567x0123 = vld1q_s8(w); w = (const void*)((const int8_t*)w + 16);
+      int8x16_t vb4567x4567 = vld1q_s8(w); w = (const void*)((const int8_t*)w + 16);
+
+      // Multiply-accumulate: 8x8 * 8x8 --> 8x8.
+      vacc0x0123 = vdotq_lane_s32(vacc0x0123, vb0123x0123, va0x01234567, 0);
+      vacc0x4567 = vdotq_lane_s32(vacc0x4567, vb0123x4567, va0x01234567, 0);
+      vacc1x0123 = vdotq_lane_s32(vacc1x0123, vb0123x0123, va1x01234567, 0);
+      vacc1x4567 = vdotq_lane_s32(vacc1x4567, vb0123x4567, va1x01234567, 0);
+      vacc2x0123 = vdotq_lane_s32(vacc2x0123, vb0123x0123, va2x01234567, 0);
+      vacc2x4567 = vdotq_lane_s32(vacc2x4567, vb0123x4567, va2x01234567, 0);
+      vacc3x0123 = vdotq_lane_s32(vacc3x0123, vb0123x0123, va3x01234567, 0);
+      vacc3x4567 = vdotq_lane_s32(vacc3x4567, vb0123x4567, va3x01234567, 0);
+      vacc4x0123 = vdotq_lane_s32(vacc4x0123, vb0123x0123, va4x01234567, 0);
+      vacc4x4567 = vdotq_lane_s32(vacc4x4567, vb0123x4567, va4x01234567, 0);
+      vacc5x0123 = vdotq_lane_s32(vacc5x0123, vb0123x0123, va5x01234567, 0);
+      vacc5x4567 = vdotq_lane_s32(vacc5x4567, vb0123x4567, va5x01234567, 0);
+      vacc6x0123 = vdotq_lane_s32(vacc6x0123, vb0123x0123, va6x01234567, 0);
+      vacc6x4567 = vdotq_lane_s32(vacc6x4567, vb0123x4567, va6x01234567, 0);
+      vacc7x0123 = vdotq_lane_s32(vacc7x0123, vb0123x0123, va7x01234567, 0);
+      vacc7x4567 = vdotq_lane_s32(vacc7x4567, vb0123x4567, va7x01234567, 0);
+      vacc0x0123 = vdotq_lane_s32(vacc0x0123, vb4567x0123, va0x01234567, 1);
+      vacc0x4567 = vdotq_lane_s32(vacc0x4567, vb4567x4567, va0x01234567, 1);
+      vacc1x0123 = vdotq_lane_s32(vacc1x0123, vb4567x0123, va1x01234567, 1);
+      vacc1x4567 = vdotq_lane_s32(vacc1x4567, vb4567x4567, va1x01234567, 1);
+      vacc2x0123 = vdotq_lane_s32(vacc2x0123, vb4567x0123, va2x01234567, 1);
+      vacc2x4567 = vdotq_lane_s32(vacc2x4567, vb4567x4567, va2x01234567, 1);
+      vacc3x0123 = vdotq_lane_s32(vacc3x0123, vb4567x0123, va3x01234567, 1);
+      vacc3x4567 = vdotq_lane_s32(vacc3x4567, vb4567x4567, va3x01234567, 1);
+      vacc4x0123 = vdotq_lane_s32(vacc4x0123, vb4567x0123, va4x01234567, 1);
+      vacc4x4567 = vdotq_lane_s32(vacc4x4567, vb4567x4567, va4x01234567, 1);
+      vacc5x0123 = vdotq_lane_s32(vacc5x0123, vb4567x0123, va5x01234567, 1);
+      vacc5x4567 = vdotq_lane_s32(vacc5x4567, vb4567x4567, va5x01234567, 1);
+      vacc6x0123 = vdotq_lane_s32(vacc6x0123, vb4567x0123, va6x01234567, 1);
+      vacc6x4567 = vdotq_lane_s32(vacc6x4567, vb4567x4567, va6x01234567, 1);
+      vacc7x0123 = vdotq_lane_s32(vacc7x0123, vb4567x0123, va7x01234567, 1);
+      vacc7x4567 = vdotq_lane_s32(vacc7x4567, vb4567x4567, va7x01234567, 1);
+
+      k += 8 * sizeof(int8_t);
+    }
+    // Handle final 4 positions of `k`.
     while (k < kc) {
       // Load a 8x4 block of activations.
       int8x8_t va0x0123 = vld1_s8(a0); a0 += 4;
@@ -115,8 +170,8 @@ void xnn_qs8_gemm_minmax_ukernel_8x8c4__neondot(
       int8x8_t va7x0123 = vld1_s8(a7); a7 += 4;
 
       // Load a 4x8 block of weights.
-      int8x16_t vb0123x0123 = vld1q_s8((const int8_t*)w); w = (const void*)((const int8_t*)w + 16);
-      int8x16_t vb0123x4567 = vld1q_s8((const int8_t*)w); w = (const void*)((const int8_t*)w + 16);
+      int8x16_t vb0123x0123 = vld1q_s8(w); w = (const void*)((const int8_t*)w + 16);
+      int8x16_t vb0123x4567 = vld1q_s8(w); w = (const void*)((const int8_t*)w + 16);
 
       // Multiply-accumulate: 8x4 * 4x8 --> 8x8.
       vacc0x0123 = vdotq_lane_s32(vacc0x0123, vb0123x0123, va0x0123, 0);
